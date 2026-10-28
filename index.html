@@ -3,35 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Tale of DD and the Seven Companions — A Birthday Fairytale</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
+<title>KK and the Quest for the Perfect Gift — A Cyberpunk Birthday Tale</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@400;500;600;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <div id="stage">
 
-  <!-- starfield background -->
+  <!-- digital-rain background -->
   <canvas id="stars"></canvas>
 
   <!-- fireworks burst, played once the back cover is reached -->
   <canvas id="fireworks"></canvas>
 
   <!-- mute button, always present -->
-  <button id="mute-btn" aria-label="Mute background music" aria-pressed="false">
-    <svg id="icon-on" viewBox="0 0 24 24" width="22" height="22"><path d="M3 10v4h4l5 5V5L7 10H3z" fill="currentColor"/><path d="M16.5 12a4.5 4.5 0 0 0-2.5-4.03v8.06A4.5 4.5 0 0 0 16.5 12z" fill="currentColor"/><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" fill="currentColor"/></svg>
-    <svg id="icon-off" viewBox="0 0 24 24" width="22" height="22" style="display:none"><path d="M3 10v4h4l5 5V5L7 10H3z" fill="currentColor"/><path d="M19.5 12l2.5-2.5-1.4-1.4L18 10.6l-2.5-2.5-1.4 1.4L16.6 12l-2.5 2.5 1.4 1.4L18 13.4l2.5 2.5 1.4-1.4L19.4 12z" fill="currentColor"/></svg>
+  <button id="mute-btn" aria-label="Play/Pause background music" aria-pressed="false">
+    <svg id="icon-play" viewBox="0 0 24 24" width="22" height="22"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+    <svg id="icon-pause" viewBox="0 0 24 24" width="22" height="22" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"/></svg>
   </button>
 
   <!-- book wrapper: handles the spin-into-view entrance -->
   <div id="book-wrap">
     <div id="perspective">
       <div id="book">
-        <!-- left slot: only populated/shown in desktop two-page spread mode -->
-        <div id="pages-left" class="book-slot"></div>
         <!-- right slot: the interactive stack. Full width in single-page (mobile) mode. -->
         <div id="pages-right" class="book-slot"></div>
       </div>
@@ -57,7 +55,7 @@
 
 </div>
 
-<audio id="bg-audio" src="assets/audio/background_tune.mp3" loop preload="auto"></audio>
+<audio id="bg-audio" src="assets/audio/KK_all_the_way.mp3" loop preload="auto" playsinline></audio>
 
 <script src="js/script.js"></script>
 </body>
