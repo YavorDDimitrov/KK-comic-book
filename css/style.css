@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap');
-
 :root{
   --navy-deep: #05030f;
   --navy: #0a0720;
@@ -23,6 +21,7 @@ html, body{
   font-family: 'Oswald', sans-serif;
   color: var(--paper);
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 #stage{
@@ -43,7 +42,6 @@ html, body{
   z-index: 1;
   pointer-events:none;
   background: repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 4px);
-  mix-blend-mode: screen;
 }
 #stage::after{
   content:"";
@@ -53,7 +51,7 @@ html, body{
   background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
 }
 
-/* #stars is now the falling digital-rain canvas (same element, new look) */
+/* #stars is the falling digital-rain canvas */
 #stars, #fireworks{
   position:absolute; inset:0; width:100%; height:100%;
 }
@@ -73,6 +71,7 @@ html, body{
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   box-shadow: 0 0 10px rgba(0,240,255,0.25);
 }
@@ -92,6 +91,7 @@ html, body{
 
 #perspective{
   perspective: 2600px;
+  -webkit-perspective: 2600px;
   perspective-origin: 50% 50%;
   width: min(64vh, 92vw);
   height: min(95.4vh, 137.1vw);
@@ -100,8 +100,6 @@ html, body{
   transition: width 0.3s ease, max-width 0.3s ease;
 }
 
-/* desktop two-page spread: roughly double width so both pages read at a
-   comfortable size, height is unchanged (driven by a single page's height) */
 body.spread-mode #perspective{
   width: min(122vh, 96vw);
   max-width: 1150px;
@@ -110,14 +108,16 @@ body.spread-mode #perspective{
 #book{
   position: relative;
   width: 100%; height: 100%;
-  display: flex;
-  flex-direction: row;
-  gap: 0;
-  transform-style: preserve-3d;
   will-change: transform;
 }
 
-/* spin-into-view entrance, plays automatically on load */
+@media (min-width: 769px) {
+  #book, .book-slot {
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+  }
+}
+
 #book-wrap.enter-run #book{
   animation: bookSpinIn 1.35s cubic-bezier(.22,.9,.32,1.08) forwards;
 }
@@ -127,148 +127,146 @@ body.spread-mode #perspective{
 @keyframes wrapFadeIn{
   from{ opacity:0; } to{ opacity:1; }
 }
+
+/* MOBILE ENTRANCE: Smooth 2D Entrance without 3D spins that cause flickering */
 @keyframes bookSpinIn{
-  0%{
-    transform: translateZ(-900px) rotateY(540deg) rotateX(12deg) scale(0.35);
-    filter: brightness(2) blur(2px);
-  }
-  60%{
-    filter: brightness(1.15) blur(0);
-  }
-  100%{
-    transform: translateZ(0) rotateY(0deg) rotateX(0deg) scale(1);
-    filter: brightness(1) blur(0);
+  0%{ transform: translateY(40px) scale(0.9); opacity: 0; filter: blur(4px); }
+  100%{ transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
+}
+
+/* DESKTOP ENTRANCE: Full 3D Spin Entrance */
+@media (min-width: 769px) {
+  @keyframes bookSpinIn{
+    0%{
+      transform: translateZ(-900px) rotateY(540deg) rotateX(12deg) scale(0.35);
+      filter: brightness(2) blur(2px);
+    }
+    60%{ filter: brightness(1.15) blur(0); }
+    100%{ transform: translateZ(0) rotateY(0deg) rotateX(0deg) scale(1); filter: brightness(1) blur(0); }
   }
 }
 
 /* ---------- Left / right page slots ---------- */
 .book-slot{
-  position: relative;
-  height: 100%;
-  transform-style: preserve-3d;
-}
-/* mobile / single-page mode: right slot fills the whole book, left is unused */
-#pages-left{ flex: 0 0 0%; width: 0%; opacity: 0; pointer-events: none; }
-#pages-right{ flex: 1 1 100%; width: 100%; }
-
-/* desktop spread mode: both slots share the width with a spine gap between */
-body.spread-mode #pages-left{
-  flex: 0 0 calc(50% - 6px);
-  width: calc(50% - 6px);
-  opacity: 1;
-  pointer-events: auto;
-  margin-right: 12px;
-}
-body.spread-mode #pages-right{
-  flex: 0 0 calc(50% - 6px);
-  width: calc(50% - 6px);
-}
-/* a soft spine shadow down the centre of an open spread */
-body.spread-mode #book::before{
-  content:"";
   position: absolute;
-  left: 50%; top: 0; bottom: 0;
-  width: 24px;
-  transform: translateX(-50%);
+  top: 0; bottom: 0;
+}
+#pages-right{ left: 0; right: 0; width: 100%; }
+
+body.spread-mode #pages-right{
+  left: 50%; right: 0; width: 50%;
+}
+body.spread-mode #book::before{
+  content:""; position: absolute; left: 50%; top: 0; bottom: 0;
+  width: 24px; transform: translateX(-50%);
   background: linear-gradient(90deg, transparent, rgba(0,0,0,0.4), transparent);
-  z-index: 40;
-  pointer-events: none;
+  z-index: 40; pointer-events: none;
 }
 
+/* ---------- Flip pages ---------- */
 .page{
   position: absolute;
   inset: 0;
-  transform-style: preserve-3d;
-  transform-origin: left center;
-  transform: rotateY(0deg);
-  transition: transform 0.85s cubic-bezier(.63,.06,.34,1);
   cursor: pointer;
+  /* Mobile 2D Sliding Defaults */
+  transition: transform 0.45s ease-out, opacity 0.45s ease-out;
+  transform: translateX(var(--tx, 0px));
+  opacity: var(--op, 1);
 }
-.page.flipped{
-  transform: rotateY(-178deg);
+
+/* Desktop 3D overrides */
+@media (min-width: 769px) {
+  .page {
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+    transform-origin: left center;
+    transform: translateZ(var(--tz, 0px)) rotateY(var(--rot, 0deg));
+    transition: transform 0.85s cubic-bezier(.63,.06,.34,1);
+    opacity: 1 !important;
+  }
 }
-/* subtle lift while a page is actively turning, so it visibly sweeps over the stack */
+
 .page.turning{
-  transition: transform 0.85s cubic-bezier(.63,.06,.34,1), box-shadow 0.85s ease;
+  will-change: transform, opacity;
 }
 
 .page-face{
   position: absolute; inset: 0;
-  backface-visibility: hidden;
   border-radius: 4px;
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0,0,0,0.6), 0 0 26px rgba(0,240,255,0.16);
   background: var(--ink);
 }
-.page-face.front{ transform: rotateY(0deg); }
-.page-face.back{ transform: rotateY(180deg); }
+
+/* Mobile: hide the back face since we slide out rather than rotate */
+@media (max-width: 768px) {
+  .page-face.back {
+    display: none;
+  }
+}
+
+/* Desktop: enable backface visibility and Z-translations */
+@media (min-width: 769px) {
+  .page-face {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .page-face.front{ 
+    transform: rotateY(0deg) translateZ(1px); 
+    -webkit-transform: rotateY(0deg) translateZ(1px);
+  }
+  .page-face.back{ 
+    transform: rotateY(180deg) translateZ(2px); 
+    -webkit-transform: rotateY(180deg) translateZ(2px);
+  }
+}
 
 .page-face img{
   width: 100%; height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-  user-select: none;
+  object-fit: cover; display: block;
+  pointer-events: none; user-select: none; -webkit-user-select: none;
 }
 
-/* back-of-page / inside-cover design: dark cyber cardstock with the book's
-   title, used for generic page backs (mobile) and the blank inside-cover
-   panels that sit opposite the front/back cover in desktop spread mode */
 .back-card{
   width: 100%; height: 100%;
   background:
     repeating-linear-gradient(135deg, rgba(0,240,255,0.04) 0 2px, transparent 2px 7px),
     linear-gradient(160deg, #150a2e 0%, #070416 100%);
   display: flex; align-items: center; justify-content: center;
-  padding: 10%;
-  text-align: center;
+  padding: 10%; text-align: center;
 }
 .back-card span{
   font-family: 'Orbitron', 'Bangers', cursive;
   font-weight: 700;
-  letter-spacing: 3px;
-  line-height: 1.4;
-  font-size: clamp(13px, 2.3vw, 20px);
+  letter-spacing: 3px; line-height: 1.4; font-size: clamp(13px, 2.3vw, 20px);
   color: rgba(0,240,255,0.2);
   text-shadow: 0 0 12px rgba(255,43,214,0.35);
   transform: rotate(-4deg);
   white-space: pre-line;
 }
 
-/* spine shadow that darkens pages as they approach vertical (page-turn realism) */
 .page-face::after{
-  content:"";
-  position:absolute; inset:0;
-  pointer-events:none;
+  content:""; position:absolute; inset:0; pointer-events:none;
   background: linear-gradient(90deg, rgba(0,0,0,0.35) 0%, transparent 16%);
 }
 
-/* static shadow under the whole book */
 #perspective::after{
-  content:"";
-  position:absolute;
-  left: 6%; right: 6%; bottom: -3%;
+  content:""; position:absolute; left: 6%; right: 6%; bottom: -3%;
   height: 24px;
   background: radial-gradient(ellipse at center, rgba(255,43,214,0.45), transparent 70%);
-  filter: blur(8px);
-  z-index: -1;
+  filter: blur(8px); z-index: -1;
 }
 
 /* ---------- Nav arrows ---------- */
 .nav-arrow{
-  position: fixed;
-  top: 50%; transform: translateY(-50%);
-  width: 52px; height: 52px;
-  border-radius: 50%;
-  border: 2px solid var(--neon-pink);
-  background: rgba(5,3,15,0.6);
-  color: var(--paper);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  z-index: 50;
-  transition: opacity 0.25s ease, transform 0.15s ease, box-shadow 0.15s ease;
-  backdrop-filter: blur(3px);
+  position: fixed; top: 50%; transform: translateY(-50%);
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 2px solid var(--neon-pink); background: rgba(5,3,15,0.6); color: var(--paper);
   box-shadow: 0 0 10px rgba(255,43,214,0.3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 50;
+  transition: opacity 0.25s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
 }
 .nav-arrow:hover{ box-shadow: 0 0 20px rgba(255,43,214,0.8); transform: translateY(-50%) scale(1.08); }
 .nav-arrow:active{ transform: translateY(-50%) scale(0.96); }
@@ -278,50 +276,31 @@ body.spread-mode #book::before{
 #next-btn{ right: 14px; }
 
 @media (max-width: 640px){
-  .nav-arrow{ width: 42px; height: 42px; }
+  .nav-arrow{ width: 46px; height: 46px; }
   #prev-btn{ left: 6px; }
   #next-btn{ right: 6px; }
 }
 
-/* ---------- Restart pill (shown on the back cover) ---------- */
+/* ---------- Restart pill ---------- */
 #restart-btn{
-  position: fixed;
-  bottom: 64px; left: 50%;
-  transform: translateX(-50%);
-  z-index: 60;
-  display: flex; align-items: center; gap: 9px;
-  font-family: 'Orbitron', 'Bangers', cursive;
-  font-weight: 700;
-  letter-spacing: 1px;
-  font-size: 14px;
-  color: var(--ink);
-  background: var(--neon-cyan);
-  border: none;
-  padding: 11px 22px;
-  border-radius: 28px;
-  cursor: pointer;
+  position: fixed; bottom: 64px; left: 50%; transform: translateX(-50%);
+  z-index: 60; display: flex; align-items: center; gap: 9px;
+  font-family: 'Orbitron', 'Bangers', cursive; font-weight: 700; letter-spacing: 1px; font-size: 14px;
+  color: var(--ink); background: var(--neon-cyan); border: none;
+  padding: 11px 22px; border-radius: 28px; cursor: pointer;
   box-shadow: 0 4px 0 #0098a3, 0 0 22px rgba(0,240,255,0.55);
-  transition: opacity 0.3s ease, transform 0.18s ease, box-shadow 0.18s ease;
-  opacity: 1;
+  transition: opacity 0.3s ease, transform 0.18s ease, box-shadow 0.18s ease; opacity: 1;
 }
 #restart-btn:hover{ transform: translateX(-50%) translateY(-2px); }
 #restart-btn:active{
   transform: translateX(-50%) translateY(2px);
   box-shadow: 0 2px 0 #0098a3, 0 0 14px rgba(0,240,255,0.45);
 }
-#restart-btn.hidden{
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-50%) translateY(8px);
-}
+#restart-btn.hidden{ opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(8px); }
 
 /* ---------- Book close / reopen flourishes ---------- */
-#book.book-closing{
-  animation: bookClose 0.6s ease;
-}
-#book.book-opening{
-  animation: bookOpen 0.6s ease;
-}
+#book.book-closing{ animation: bookClose 0.6s ease; }
+#book.book-opening{ animation: bookOpen 0.6s ease; }
 @keyframes bookClose{
   0%   { transform: rotateX(0deg) translateY(0) scale(1); }
   28%  { transform: rotateX(-4deg) translateY(3px) scale(0.983); }
@@ -338,21 +317,11 @@ body.spread-mode #book::before{
 
 /* ---------- Page counter ---------- */
 #page-counter{
-  position: fixed;
-  bottom: 16px; left: 50%; transform: translateX(-50%);
-  z-index: 50;
-  font-family: 'Orbitron', 'Oswald', sans-serif;
-  font-size: 11px;
-  letter-spacing: 3px;
-  color: var(--neon-cyan);
-  background: rgba(5,3,15,0.6);
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1px solid rgba(0,240,255,0.35);
-  text-shadow: 0 0 8px rgba(0,240,255,0.6);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s ease;
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 50; font-family: 'Orbitron', 'Oswald', sans-serif; font-size: 11px; letter-spacing: 3px; color: var(--neon-cyan);
+  background: rgba(5,3,15,0.6); padding: 6px 14px; border-radius: 20px;
+  border: 1px solid rgba(0,240,255,0.35); text-shadow: 0 0 8px rgba(0,240,255,0.6); pointer-events: none;
+  opacity: 0; transition: opacity 0.4s ease;
 }
 #page-counter.visible{ opacity: 1; }
 
