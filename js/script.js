@@ -2,55 +2,58 @@
   "use strict";
 
   const BOOK_TITLE = "KK AND THE\nQUEST FOR THE\nPERFECT GIFT";
-  const PAGE_TITLE = "KK and the Quest for the Perfect Gift \u2014 A Cyberpunk Birthday Tale";
-  const AUDIO_SRC = "assets/audio/KK_all_the_way.mp3";
-  const IMG_EXT = "png";          // page images: assets/images/<name>.png
-  const STORY_PAGES = 12;         // numbered story pages (the bonus page is not counted)
+  const STORY_PAGES = 12;   // numbered story pages (the bonus page is not counted)
 
-  document.title = PAGE_TITLE;
+  document.title = "KK and the Quest for the Perfect Gift \u2014 A Cyberpunk Birthday Tale";
 
-  // ---- Full reading order, used in single-page (mobile) mode ----
-  // The bonus (Easter egg) page sits after "The End" and before the back cover.
+  // ---- Full reading order, used universally ----
   const ALL_PAGES = [
     "front_cover", "page1", "page2", "page3", "page4", "page5", "page6",
     "page7", "page8", "page9", "page10", "page11", "page12", "bonus_page", "back_cover",
   ];
 
-  // ---- Desktop two-page spread: right-hand (recto) and left-hand (verso)
-  // stacks, advanced together. Odd story pages sit on the left, even on the
-  // right, with the front cover alone on the right (blank inside-cover panel
-  // on the left). The last spread pairs the bonus page (left) with the back
-  // cover (right). ----
-  const RIGHT_PAGES = ["front_cover", "page2", "page4", "page6", "page8", "page10", "page12", "back_cover"];
-  const LEFT_PAGES  = [null, "page1", "page3", "page5", "page7", "page9", "page11", "bonus_page"];
+  const src = (name) => `assets/images/${name}.png`;
 
-  const src = (name) => `assets/images/${name}.${IMG_EXT}`;
-
-  const isDesktop = window.matchMedia("(min-width: 900px) and (pointer: fine)").matches;
+  // ---- Viewport mode detection strictly by width ----
+  const isDesktop = window.innerWidth > 768;
   document.body.classList.toggle("spread-mode", isDesktop);
 
-  const leftContainer = document.getElementById("pages-left");
+  // ---- DOM refs ----
   const rightContainer = document.getElementById("pages-right");
-  const prevBtn = document.getElementById("prev-btn");
-  const nextBtn = document.getElementById("next-btn");
-  const counterEl = document.getElementById("page-counter");
-  const bookWrap = document.getElementById("book-wrap");
-  const bookEl = document.getElementById("book");
-  const muteBtn = document.getElementById("mute-btn");
-  const iconOn = document.getElementById("icon-on");
-  const iconOff = document.getElementById("icon-off");
-  const audio = document.getElementById("bg-audio");
-  const restartBtn = document.getElementById("restart-btn");
+  const prevBtn        = document.getElementById("prev-btn");
+  const nextBtn        = document.getElementById("next-btn");
+  const counterEl      = document.getElementById("page-counter");
+  const bookWrap       = document.getElementById("book-wrap");
+  const bookEl         = document.getElementById("book");
+  const muteBtn        = document.getElementById("mute-btn");
+  const audio          = document.getElementById("bg-audio");
+  const restartBtn     = document.getElementById("restart-btn");
 
-  // ---------- Build a stack of flip leaves inside a container ----------
-  // `names` entries are image basenames (without extension) or null for a
-  // blank/title inside-cover panel.
+  // ---------- Build helpers ----------
+
+  function makeBackCard() {
+    const card = document.createElement("div");
+    card.className = "back-card";
+    const span = document.createElement("span");
+    span.textContent = BOOK_TITLE;
+    card.appendChild(span);
+    return card;
+  }
+
   function buildStack(container, names) {
     const n = names.length;
     return names.map((name, i) => {
       const el = document.createElement("div");
       el.className = "page";
-      el.style.zIndex = String(n - i);
+      
+      const z = n - i;
+      el.style.zIndex = String(z);
+      
+      // Inject both 3D and 2D variables; CSS media queries will decide which to use
+      el.style.setProperty("--tz", `${z * 2}px`);
+      el.style.setProperty("--rot", "0deg");
+      el.style.setProperty("--tx", "0px");
+      el.style.setProperty("--op", "1");
 
       const front = document.createElement("div");
       front.className = "page-face front";
@@ -58,8 +61,8 @@
         const img = document.createElement("img");
         img.src = src(name);
         img.alt = name.replace(/_/g, " ");
-        img.decoding = "async";
         img.draggable = false;
+        img.decoding = "async";
         // safety net: if a .png is missing, quietly try the .jpg of the same name
         img.addEventListener("error", () => {
           if (!img.dataset.triedJpg) {
@@ -83,62 +86,83 @@
     });
   }
 
-  function makeBackCard() {
-    const card = document.createElement("div");
-    card.className = "back-card";
-    const span = document.createElement("span");
-    span.textContent = BOOK_TITLE;
-    card.appendChild(span);
-    return card;
-  }
+  const rightStack = buildStack(rightContainer, ALL_PAGES);
 
-  function flipForward(stack, idx) {
-    const el = stack[idx];
+  const N    = rightStack.length;   
+  const LAST = N - 1;
+  let current   = 0;                
+  let animating = false;            
+
+  // ---------- Flip mechanics ----------
+
+  function flipForward(idx) {
+    const el = rightStack[idx];
     el.classList.add("turning");
-    el.style.zIndex = String(100 + idx); // rises above the stack while/after turning
-    el.classList.add("flipped");
+    el.style.zIndex = String(100 + idx);
+    
+    // Desktop 3D variables
+    el.style.setProperty("--tz", `${100 + idx}px`);
+    el.style.setProperty("--rot", "-180deg");
+    // Mobile 2D slide variables
+    el.style.setProperty("--tx", "-100%");
+    el.style.setProperty("--op", "0");
   }
 
-  function flipBackward(stack, idx) {
-    const n = stack.length;
-    const el = stack[idx];
-    el.style.zIndex = String(n - idx);
-    el.classList.remove("flipped");
+  function flipBackward(idx) {
+    const el = rightStack[idx];
+    el.classList.add("turning");
+    const originalZ = N - idx;
+    el.style.zIndex = String(originalZ);
+    
+    // Desktop 3D variables
+    el.style.setProperty("--tz", `${originalZ * 2}px`);
+    el.style.setProperty("--rot", "0deg");
+    // Mobile 2D slide variables
+    el.style.setProperty("--tx", "0px");
+    el.style.setProperty("--op", "1");
   }
 
-  function resetStackInstant(stack) {
-    const n = stack.length;
-    stack.forEach((el, i) => {
+  function onFlipDone(idx, cb) {
+    const el = rightStack[idx];
+    let settled = false;
+
+    function finish() {
+      if (settled) return;
+      settled = true;
+      el.removeEventListener("transitionend", handler);
+      cb();
+    }
+
+    function handler(e) {
+      if (e.propertyName === "transform" || e.propertyName === "opacity") finish();
+    }
+
+    el.addEventListener("transitionend", handler);
+    setTimeout(finish, 1000);
+  }
+
+  function resetStackInstant() {
+    rightStack.forEach((el, i) => {
       el.classList.remove("turning");
       el.style.transition = "none";
-      el.classList.remove("flipped");
-      el.style.zIndex = String(n - i);
-      void el.offsetWidth;
+      const z = N - i;
+      el.style.zIndex = String(z);
+      el.style.setProperty("--tz", `${z * 2}px`);
+      el.style.setProperty("--rot", "0deg");
+      el.style.setProperty("--tx", "0px");
+      el.style.setProperty("--op", "1");
+      void el.offsetWidth;   
       el.style.transition = "";
     });
   }
 
-  // ---------- Assemble the active stack(s) for this viewport ----------
-  const rightStack = buildStack(rightContainer, isDesktop ? RIGHT_PAGES : ALL_PAGES);
-  const leftStack = isDesktop ? buildStack(leftContainer, LEFT_PAGES) : [];
-
-  const N = rightStack.length;      // number of turnable states in this mode
-  const LAST = N - 1;
-  let current = 0;
-  let animating = false;
-  let userMuted = false;
+  // ---------- UI state helpers ----------
 
   function labelFor(idx) {
-    if (isDesktop) {
-      if (idx === 0) return "Front Cover";
-      if (idx === LAST) return "Bonus Page & Back Cover";
-      const evenPage = idx * 2;
-      return `Pages ${evenPage - 1}\u2013${evenPage}`;
-    }
     const name = ALL_PAGES[idx];
     if (name === "front_cover") return "Front Cover";
-    if (name === "back_cover") return "Back Cover";
-    if (name === "bonus_page") return "Bonus Page";
+    if (name === "back_cover")  return "Back Cover";
+    if (name === "bonus_page")  return "Bonus Page";
     return `Page ${idx} of ${STORY_PAGES}`;
   }
 
@@ -148,59 +172,77 @@
   }
 
   function updateArrows() {
-    const atLast = current === LAST;
-    prevBtn.classList.toggle("hidden", current === 0 || animating);
-    nextBtn.classList.toggle("hidden", atLast || animating);
-    restartBtn.classList.toggle("hidden", !atLast || animating);
+    prevBtn.classList.toggle("hidden", current === 0);
+    nextBtn.classList.toggle("hidden", current === LAST);
+    restartBtn.classList.toggle("hidden", current !== LAST);
   }
 
   function triggerCloseFlourish() {
     bookEl.classList.add("book-closing");
-    window.setTimeout(() => bookEl.classList.remove("book-closing"), 620);
+    setTimeout(() => bookEl.classList.remove("book-closing"), 620);
   }
+
   function triggerOpenFlourish() {
     bookEl.classList.add("book-opening");
-    window.setTimeout(() => bookEl.classList.remove("book-opening"), 620);
+    setTimeout(() => bookEl.classList.remove("book-opening"), 620);
   }
+
+  // ---------- Navigation ----------
 
   function goNext() {
     if (animating || current >= LAST) return;
     animating = true;
-    flipForward(rightStack, current);
-    if (isDesktop) flipForward(leftStack, current);
+
+    const fromIdx = current;
+    flipForward(fromIdx);
     current += 1;
-    updateArrows();
+
     updateCounter();
+
+    prevBtn.classList.toggle("hidden", current === 0);
+    nextBtn.classList.toggle("hidden", current === LAST);
+
     const reachedLast = current === LAST;
-    window.setTimeout(() => {
+
+    onFlipDone(fromIdx, () => {
+      rightStack[fromIdx].classList.remove("turning");
+
       if (reachedLast) {
         triggerCloseFlourish();
         spawnFireworks();
-        window.setTimeout(() => { animating = false; updateArrows(); }, 620);
+        setTimeout(() => {
+          animating = false;
+          updateArrows();
+        }, 620);
       } else {
         animating = false;
-        updateArrows();
       }
-    }, 900);
+    });
   }
 
   function goPrev() {
     if (animating || current <= 0) return;
     animating = true;
+
     const wasLast = current === LAST;
 
-    const doFlip = () => {
+    function doFlip() {
       current -= 1;
-      flipBackward(rightStack, current);
-      if (isDesktop) flipBackward(leftStack, current);
+      const idx = current;
+      flipBackward(idx);
+
       updateArrows();
       updateCounter();
-      window.setTimeout(() => { animating = false; updateArrows(); }, 900);
-    };
+
+      onFlipDone(idx, () => {
+        rightStack[idx].classList.remove("turning");
+        animating = false;
+      });
+    }
 
     if (wasLast) {
       triggerOpenFlourish();
-      window.setTimeout(doFlip, 200);
+      setTimeout(doFlip, 200);
     } else {
       doFlip();
     }
@@ -212,26 +254,28 @@
     restartBtn.classList.add("hidden");
 
     const DUR = 420;
-    bookEl.style.transition = `transform ${DUR}ms cubic-bezier(.5,0,.5,1), opacity ${DUR}ms ease`;
-    bookEl.style.transform = "rotateY(90deg) scaleX(0.05)";
-    bookEl.style.opacity = "0.15";
+    bookEl.style.transition =
+      `transform ${DUR}ms cubic-bezier(.5,0,.5,1), opacity ${DUR}ms ease`;
+    bookEl.style.transform = isDesktop ? "rotateY(90deg) scaleX(0.05)" : "scale(0.8)";
+    bookEl.style.opacity   = "0.15";
 
-    window.setTimeout(() => {
+    setTimeout(() => {
       bookEl.style.transition = "none";
-      bookEl.style.transform = "rotateY(-90deg) scaleX(0.05)";
-      resetStackInstant(rightStack);
-      if (isDesktop) resetStackInstant(leftStack);
+      bookEl.style.transform  = isDesktop ? "rotateY(-90deg) scaleX(0.05)" : "scale(0.8)";
+
+      resetStackInstant();
       current = 0;
       void bookEl.offsetWidth;
 
-      bookEl.style.transition = `transform ${DUR}ms cubic-bezier(.5,0,.5,1), opacity ${DUR}ms ease`;
-      bookEl.style.transform = "rotateY(0deg) scaleX(1)";
-      bookEl.style.opacity = "1";
+      bookEl.style.transition =
+        `transform ${DUR}ms cubic-bezier(.5,0,.5,1), opacity ${DUR}ms ease`;
+      bookEl.style.transform = isDesktop ? "rotateY(0deg) scaleX(1)" : "scale(1)";
+      bookEl.style.opacity   = "1";
 
-      window.setTimeout(() => {
+      setTimeout(() => {
         bookEl.style.transition = "";
-        bookEl.style.transform = "";
-        bookEl.style.opacity = "";
+        bookEl.style.transform  = "";
+        bookEl.style.opacity    = "";
         animating = false;
         updateArrows();
         updateCounter();
@@ -239,95 +283,155 @@
     }, DUR);
   }
 
+  // ---------- Event listeners ----------
+
   nextBtn.addEventListener("click", goNext);
   prevBtn.addEventListener("click", goPrev);
   restartBtn.addEventListener("click", startFromBeginning);
 
-  // click zones: right slot (or right half in single-page mode) -> next,
-  // left slot (or left half) -> prev
-  rightContainer.addEventListener("click", (e) => {
-    if (isDesktop) { goNext(); return; }
-    const rect = rightContainer.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    if (x > rect.width / 2) goNext(); else goPrev();
-  });
-  if (isDesktop) {
-    leftContainer.addEventListener("click", goPrev);
-  }
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight" || e.key === " ") goNext();
-    if (e.key === "ArrowLeft") goPrev();
-  });
-
-  // basic swipe support (mobile)
+  let swipeFired  = false;
   let touchStartX = null;
-  rightContainer.addEventListener("touchstart", (e) => { touchStartX = e.changedTouches[0].clientX; }, { passive: true });
+  let touchStartY = null;
+
+  rightContainer.addEventListener("touchstart", (e) => {
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+    swipeFired  = false;
+  }, { passive: true });
+
   rightContainer.addEventListener("touchend", (e) => {
     if (touchStartX === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(dx) > 40) { dx < 0 ? goNext() : goPrev(); }
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      swipeFired = true;
+      dx < 0 ? goNext() : goPrev();
+    }
     touchStartX = null;
+    touchStartY = null;
   }, { passive: true });
+
+  rightContainer.addEventListener("click", (e) => {
+    if (swipeFired) { swipeFired = false; return; }
+    
+    const rect = rightContainer.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (rect.width > window.innerWidth * 0.8) {
+      x > rect.width / 2 ? goNext() : goPrev();
+    } else {
+      goNext();
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); goNext(); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
+  });
 
   updateArrows();
   updateCounter();
 
   // ---------- Audio / mute ----------
-  // point the page's <audio> at the KK track and make sure it loops forever
-  if (audio) {
-    if (audio.getAttribute("src") !== AUDIO_SRC) {
-      audio.src = AUDIO_SRC;
-      audio.load();
-    }
-    audio.loop = true;
-  }
 
-  function setMuted(muted) {
-    userMuted = muted;
-    audio.muted = muted;
-    muteBtn.classList.toggle("is-muted", muted);
-    muteBtn.setAttribute("aria-pressed", String(muted));
-    iconOn.style.display = muted ? "none" : "block";
-    iconOff.style.display = muted ? "block" : "none";
-  }
+  const iconPlay  = document.getElementById("icon-play");
+  const iconPause = document.getElementById("icon-pause");
 
-  function tryPlay() {
-    const p = audio.play();
-    if (p && typeof p.catch === "function") {
-      p.catch(() => { /* autoplay blocked until a user gesture; handled below */ });
+  let isPlaying = false;
+  let hasUserInteracted = false;
+
+  function updateAudioUI() {
+    if (isPlaying) {
+      iconPlay.style.display  = "none";
+      iconPause.style.display = "block";
+      muteBtn.classList.remove("is-muted");
+    } else {
+      iconPlay.style.display  = "block";
+      iconPause.style.display = "none";
+      muteBtn.classList.add("is-muted");
     }
   }
 
-  muteBtn.addEventListener("click", () => setMuted(!userMuted));
+  function toggleAudio() {
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play().catch(() => {});
+    }
+  }
 
-  // no title screen: start the music immediately. If the browser blocks
-  // autoplay-with-sound, start on the visitor's first interaction instead.
-  setMuted(false);
-  tryPlay();
+  audio.addEventListener("play", () => {
+    isPlaying = true;
+    updateAudioUI();
+  });
+
+  audio.addEventListener("pause", () => {
+    isPlaying = false;
+    updateAudioUI();
+  });
+
+  muteBtn.addEventListener("click", (e) => {
+    e.stopPropagation();     
+    hasUserInteracted = true;
+    removeGestureListeners();
+    toggleAudio();
+  });
+
+  audio.play().catch(() => {});
+
   function onFirstGesture() {
-    if (!userMuted && audio.paused) tryPlay();
-    window.removeEventListener("pointerdown", onFirstGesture);
-    window.removeEventListener("keydown", onFirstGesture);
+    if (hasUserInteracted) return;
+    if (!audio.paused) {
+      removeGestureListeners(); 
+      return;
+    }
+    const p = audio.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        hasUserInteracted = true;
+        removeGestureListeners();
+      }).catch(() => {});
+    }
   }
-  window.addEventListener("pointerdown", onFirstGesture);
-  window.addEventListener("keydown", onFirstGesture);
 
-  // ---------- Entrance: spin the book into view automatically ----------
-  window.requestAnimationFrame(() => {
+  function removeGestureListeners() {
+    window.removeEventListener("pointerdown", onFirstGesture, true);
+    window.removeEventListener("keydown",     onFirstGesture, true);
+    window.removeEventListener("touchstart",  onFirstGesture, true);
+    window.removeEventListener("click",       onFirstGesture, true);
+  }
+
+  window.addEventListener("pointerdown", onFirstGesture, true);
+  window.addEventListener("keydown",     onFirstGesture, true);
+  window.addEventListener("touchstart",  onFirstGesture, true);
+  window.addEventListener("click",       onFirstGesture, true);
+
+  // ---------- Entrance ----------
+
+  requestAnimationFrame(() => {
     bookWrap.classList.add("enter-run");
-    bookWrap.addEventListener("animationend", function onEnd(ev) {
-      if (ev.target === bookEl) {
-        bookWrap.style.opacity = "1";
-        bookEl.style.transform = "none";
-        bookWrap.classList.remove("enter-run");
-        bookWrap.removeEventListener("animationend", onEnd);
-      }
-    });
+
+    let entranceDone = false;
+
+    function finishEntrance() {
+      if (entranceDone) return;
+      entranceDone = true;
+      bookWrap.style.opacity = "1";
+      bookEl.style.transform = "none";
+      bookWrap.classList.remove("enter-run");
+      bookWrap.removeEventListener("animationend", onAnimEnd);
+    }
+
+    function onAnimEnd(ev) {
+      if (ev.target === bookEl) finishEntrance();
+    }
+
+    bookWrap.addEventListener("animationend", onAnimEnd);
+    setTimeout(finishEntrance, 2000);
   });
 
   // ---------- Cyberpunk digital rain background (numbers + symbols) ----------
-  // Draws on the existing #stars canvas, so no HTML change is needed.
+  // Draws on the existing #stars canvas.
+
   (function digitalRain() {
     const canvas = document.getElementById("stars");
     const ctx = canvas.getContext("2d");
@@ -335,20 +439,20 @@
       "\uFF71\uFF72\uFF73\uFF74\uFF75\uFF76\uFF77\uFF78\uFF79\uFF7A\uFF7B\uFF7C\uFF7D\uFF7E\uFF7F\uFF80\uFF81\uFF82\uFF83\uFF84").split("");
     const PALETTE = ["#00f0ff", "#00f0ff", "#00f0ff", "#ff2bd6", "#7b5cff"];
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const FRAME_MS = 60;          // ~16 fps: calm, low-CPU rain
+    const FRAME_MS = 60;          // calm, low-CPU rain
     let w, h, fontSize, cols;
     let lastTime = 0;
 
     function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
     function resize() {
-      w = canvas.width = window.innerWidth;
+      w = canvas.width  = window.innerWidth;
       h = canvas.height = window.innerHeight;
       fontSize = w < 640 ? 14 : 18;
       const count = Math.ceil(w / fontSize);
       cols = Array.from({ length: count }, () => ({
-        row: Math.random() * (h / fontSize),      // current head position (in rows)
-        speed: 0.35 + Math.random() * 0.9,        // rows per frame
+        row: Math.random() * (h / fontSize),
+        speed: 0.35 + Math.random() * 0.9,
         color: pick(PALETTE),
       }));
       ctx.clearRect(0, 0, w, h);
@@ -410,19 +514,20 @@
     if (!reduced) requestAnimationFrame(step);
   })();
 
-  // ---------- Fireworks burst, played once the back cover is reached ----------
+  // ---------- Fireworks burst ----------
+
   const spawnFireworks = (function fireworksModule() {
     const canvas = document.getElementById("fireworks");
     const ctx = canvas.getContext("2d");
     const COLORS = ["#ff2bd6", "#00f0ff", "#7b5cff", "#ffe14d", "#f4f1e8"];
     let w, h;
     let particles = [];
-    let running = false;
-    let stopAt = 0;
+    let running   = false;
+    let stopAt    = 0;
     let lastBurst = 0;
 
     function resize() {
-      w = canvas.width = window.innerWidth;
+      w = canvas.width  = window.innerWidth;
       h = canvas.height = window.innerHeight;
     }
     window.addEventListener("resize", resize);
@@ -458,7 +563,7 @@
       particles.forEach((p) => {
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.045; // gravity
+        p.vy += 0.045;     
         p.life -= p.decay;
       });
       particles = particles.filter((p) => p.life > 0);
@@ -482,7 +587,7 @@
 
     return function spawn() {
       particles = [];
-      running = true;
+      running   = true;
       lastBurst = 0;
       const start = performance.now();
       stopAt = start + 4200;
